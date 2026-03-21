@@ -272,6 +272,8 @@ func applyOSC(body string, st tcell.Style) tcell.Style {
 }
 
 // filterPreviewLine applies the specified filter level to a preview line.
+// This is needed because the sixel rendering path (printSixel) writes directly
+// to os.Stderr, bypassing the C0 control filter in win.print.
 //
 // Levels:
 //
@@ -290,7 +292,7 @@ func filterPreviewLine(s string, level string) string {
 }
 
 // filterEscapes strips dangerous terminal sequences and control characters
-// from a preview line.
+// from a string.
 //
 // Safe CSI sequences (SGR `m` and EL `K`) are always kept.
 // DCS sequences (used for sixel images and similar protocols) are kept only
@@ -305,7 +307,7 @@ func filterEscapes(s string, allowDCS bool) string {
 	slen := len(s)
 	for i := 0; i < slen; i++ {
 		if s[i] != gEscapeCode {
-			if s[i] >= 0x20 || s[i] == '\t' {
+			if (s[i] >= 0x20 && s[i] != 0x7f) || s[i] == '\t' {
 				b.WriteByte(s[i]) // printable or tab
 			}
 			continue

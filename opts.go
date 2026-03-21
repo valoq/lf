@@ -126,6 +126,7 @@ var gOpts struct {
 	preserve         []string
 	preview          bool
 	previewer        string
+	previewfilter    string
 	promptfmt        string
 	ratios           []int
 	relativenumber   bool
@@ -139,7 +140,6 @@ var gOpts struct {
 	shell            string
 	shellflag        string
 	shellopts        []string
-	previewfilter    string
 	showbinds        bool
 	sizeunits        string
 	smartcase        bool
@@ -270,6 +270,11 @@ func init() {
 	gOpts.preserve = []string{"mode"}
 	gOpts.preview = true
 	gOpts.previewer = ""
+	if gIsRoot {
+		gOpts.previewfilter = "paranoid"
+	} else {
+		gOpts.previewfilter = "normal"
+	}
 	gOpts.promptfmt = "\033[32;1m%u@%h\033[0m:\033[34;1m%d\033[0m\033[1m%f\033[0m"
 	gOpts.ratios = []int{1, 2, 3}
 	gOpts.relativenumber = false
@@ -283,7 +288,6 @@ func init() {
 	gOpts.shell = gDefaultShell
 	gOpts.shellflag = gDefaultShellFlag
 	gOpts.shellopts = nil
-	gOpts.previewfilter = "normal"
 	gOpts.showbinds = true
 	gOpts.sizeunits = "binary"
 	gOpts.smartcase = true

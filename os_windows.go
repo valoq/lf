@@ -32,6 +32,7 @@ var (
 
 var (
 	gUser        *user.User
+	gIsRoot      = windows.GetCurrentProcessToken().IsElevated()
 	gConfigPaths []string
 	gColorsPaths []string
 	gIconsPaths  []string

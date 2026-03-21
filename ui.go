@@ -39,6 +39,8 @@ func (win *win) renew(w, h, x, y int) {
 //
 // It ignores supported terminal control sequences (see [readTermSequence])
 // and accounts for tab expansions using the `tabstop` option.
+// C0 control characters and DEL are excluded to stay consistent with
+// the filtering in [win.print].
 func printLength(s string) int {
 	length := 0
 
@@ -90,6 +92,19 @@ func (win *win) print(screen tcell.Screen, x, y int, st tcell.Style, s string) t
 			w := gOpts.tabstop - (x+off+printLength(b.String()))%gOpts.tabstop
 			b.WriteString(strings.Repeat(" ", w))
 		} else if gc[0] >= 0x20 && gc[0] != 0x7f {
+			// Drop C0 control characters (0x00-0x1F) and DEL (0x7F).
+			// This is the central safety filter for all displayed content
+			// including filenames, symlink targets, and error messages.
+			// Without ESC (0x1B), no escape sequence can form, which
+			// prevents terminal injection from untrusted data such as
+			// crafted filenames. Other C0 controls like SO (0x0E) are
+			// also dropped to prevent charset corruption (the tcell v3
+			// rendering bug).
+			//
+			// Note: preview content has a separate, more granular filter
+			// (see filterPreviewLine) because the sixel rendering path
+			// (printSixel) writes directly to os.Stderr and bypasses
+			// this function entirely.
 			b.WriteString(gc)
 		}
 

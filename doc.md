@@ -298,6 +298,7 @@ The following options can be used to customize the behavior of lf:
 	preserve          []string  (default "mode")
 	preview           bool      (default true)
 	previewer         string    (default '')
+	previewfilter     string    (default 'normal', 'paranoid' for root)
 	promptfmt         string    (default "\033[32;1m%u@%h\033[0m:\033[34;1m%d\033[0m\033[1m%f\033[0m")
 	ratios            []int     (default '1:2:3')
 	relativenumber    bool      (default false)
@@ -311,7 +312,6 @@ The following options can be used to customize the behavior of lf:
 	shell             string    (default 'sh' for Unix and 'cmd' for Windows)
 	shellflag         string    (default '-c' for Unix and '/c' for Windows)
 	shellopts         []string  (default '')
-	previewfilter     string    (default 'normal')
 	showbinds         bool      (default true)
 	sizeunits         string    (default 'binary')
 	smartcase         bool      (default true)
@@ -1090,6 +1090,16 @@ Preview filtering is disabled and files are displayed as they are when the value
 If the `preload` option is enabled, then this will be called with `preload` as the mode when preloading file previews.
 Refer to the [PREVIEWING FILES section](https://github.com/gokcehan/lf/blob/master/doc.md#previewing-files) for more information about how to configure custom previews.
 
+## previewfilter (string) (default `normal`, `paranoid` for root)
+
+Controls how preview output is filtered for safety.
+Preview content may contain terminal escape sequences that could be dangerous if passed through unfiltered.
+
+- `none` — No filtering. Raw preview output is passed directly to the terminal. Only use this if you fully trust all files on the system.
+- `normal` — Strip dangerous sequences (clipboard writes, cursor movement, charset switches, device queries) and C0 control characters, but allow SGR styling, line erasure, and DCS sequences such as sixel images. Suitable for use with image previewers like `chafa`.
+- `safe` — Same as `normal` but also strips DCS sequences. Only SGR color/styling and EL (erase in line) are allowed. Use this with text-only previewers like `bat` or `highlight`.
+- `paranoid` — Strip everything. Only printable characters and tabs are kept. No colors, no styling, no escape sequences of any kind.
+
 ## promptfmt (string) (default `\033[32;1m%u@%h\033[0m:\033[34;1m%d\033[0m\033[1m%f\033[0m`)
 
 Format string of the prompt shown in the top line.
@@ -1187,16 +1197,6 @@ Command line flag used to pass shell commands.
 ## shellopts ([]string)  (default ``)
 
 List of shell options to pass to the shell executable.
-
-## previewfilter (string) (default `normal`)
-
-Controls how preview output is filtered for safety.
-Preview content may contain terminal escape sequences that could be dangerous if passed through unfiltered.
-
-- `none` — No filtering. Raw preview output is passed directly to the terminal. Only use this if you fully trust all files on the system.
-- `normal` — Strip dangerous sequences (clipboard writes, cursor movement, charset switches, device queries) and C0 control characters, but allow SGR styling, line erasure, and DCS sequences such as sixel images. Suitable for use with image previewers like `chafa`.
-- `safe` — Same as `normal` but also strips DCS sequences. Only SGR color/styling and EL (erase in line) are allowed. Use this with text-only previewers like `bat` or `highlight`.
-- `paranoid` — Strip everything. Only printable characters and tabs are kept. No colors, no styling, no escape sequences of any kind.
 
 ## showbinds (bool) (default true)
 

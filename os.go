@@ -35,6 +35,7 @@ var (
 
 var (
 	gUser        *user.User
+	gIsRoot      = os.Getuid() == 0
 	gConfigPaths []string
 	gColorsPaths []string
 	gIconsPaths  []string

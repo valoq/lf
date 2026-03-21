@@ -939,6 +939,8 @@ func (nav *nav) preview(path string, win *win, mode string) {
 	}
 
 	// Apply preview filtering based on the previewfilter option.
+	// This is needed because printSixel writes directly to os.Stderr,
+	// bypassing win.print (which has its own C0 control filter).
 	//   none:     no filtering (original lf behavior)
 	//   normal:   strip dangerous sequences but allow DCS (sixel, etc.)
 	//   safe:     strip all sequences except SGR styling and EL
