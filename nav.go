@@ -937,6 +937,21 @@ func (nav *nav) preview(path string, win *win, mode string) {
 	if binary {
 		lines = []string{"\033[7mbinary\033[0m"}
 	}
+
+	// Apply preview filtering based on the previewfilter option.
+	//   none:     no filtering (original lf behavior)
+	//   normal:   strip dangerous sequences but allow DCS (sixel, etc.)
+	//   safe:     strip all sequences except SGR styling and EL
+	//   paranoid: strip everything, plain text only
+	if !binary && gOpts.previewfilter != "none" {
+		if gOpts.previewfilter == "safe" || gOpts.previewfilter == "paranoid" {
+			sixel = false
+		}
+		for i, l := range lines {
+			lines[i] = filterPreviewLine(l, gOpts.previewfilter)
+		}
+	}
+
 	reg.lines = lines
 	reg.sixel = sixel
 }

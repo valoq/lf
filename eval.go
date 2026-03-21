@@ -401,6 +401,14 @@ func (e *setExpr) eval(app *app, _ []string) {
 			return
 		}
 		gOpts.shellopts = strings.Split(e.val, ":")
+	case "previewfilter":
+		switch e.val {
+		case "none", "normal", "safe", "paranoid":
+			gOpts.previewfilter = e.val
+		default:
+			app.ui.echoerr("previewfilter: value should be 'none', 'normal', 'safe' or 'paranoid'")
+			return
+		}
 	case "sizeunits":
 		switch e.val {
 		case "binary", "decimal":

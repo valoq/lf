@@ -270,3 +270,100 @@ func applyOSC(body string, st tcell.Style) tcell.Style {
 		return st
 	}
 }
+
+// filterPreviewLine applies the specified filter level to a preview line.
+//
+// Levels:
+//
+//	"normal"   - strip dangerous sequences, keep SGR/EL and DCS (sixel, etc.)
+//	"safe"     - strip all sequences except SGR styling and EL
+//	"paranoid" - strip everything, plain printable text and tabs only
+func filterPreviewLine(s string, level string) string {
+	switch level {
+	case "paranoid":
+		return filterParanoid(s)
+	case "safe":
+		return filterEscapes(s, false)
+	default: // "normal"
+		return filterEscapes(s, true)
+	}
+}
+
+// filterEscapes strips dangerous terminal sequences and control characters
+// from a preview line.
+//
+// Safe CSI sequences (SGR `m` and EL `K`) are always kept.
+// DCS sequences (used for sixel images and similar protocols) are kept only
+// when allowDCS is true. The DCS String Terminator (ESC \) is also kept when
+// allowDCS is true so that DCS sequences are properly terminated.
+// All other escape sequences are dropped, including OSC (clipboard writes,
+// hyperlinks, title changes), other CSI sequences (cursor movement, device
+// status, erase display), and other ESC-initiated sequences (charset switches).
+// C0 control characters (BEL, BS, SO, SI, etc.) are also dropped.
+func filterEscapes(s string, allowDCS bool) string {
+	var b strings.Builder
+	slen := len(s)
+	for i := 0; i < slen; i++ {
+		if s[i] != gEscapeCode {
+			if s[i] >= 0x20 || s[i] == '\t' {
+				b.WriteByte(s[i]) // printable or tab
+			}
+			continue
+		}
+
+		if i+1 >= slen {
+			continue // bare ESC at end of string
+		}
+
+		switch s[i+1] {
+		case '[': // CSI
+			end := findCSIEnd(s[i:], min(slen-i, 64))
+			if end == -1 {
+				continue // malformed CSI, drop ESC
+			}
+			if s[i+end] == 'm' || s[i+end] == 'K' {
+				b.WriteString(s[i : i+end+1]) // keep SGR and EL
+			}
+			i += end // skip sequence
+		case 'P': // DCS introducer (sixel, etc.)
+			if allowDCS {
+				b.WriteByte(gEscapeCode)
+			}
+		case '\\': // ST (String Terminator) — terminates DCS
+			if allowDCS {
+				b.WriteByte(gEscapeCode)
+			}
+		default:
+			// OSC, charset switches, other sequences — drop ESC
+		}
+	}
+
+	return b.String()
+}
+
+// filterParanoid strips all escape sequences and control characters, keeping
+// only printable characters and tabs. This is suitable for displaying plain
+// text with no terminal formatting.
+func filterParanoid(s string) string {
+	return strings.Map(func(r rune) rune {
+		if r >= 0x20 && r != 0x7f {
+			return r // printable
+		}
+		if r == '\t' {
+			return r
+		}
+		return -1 // drop
+	}, s)
+}
+
+// findCSIEnd returns the offset of the CSI final byte (0x40-0x7E) relative to
+// the start of the string, or -1 if no final byte is found within maxLen bytes.
+// The string is expected to start with ESC[.
+func findCSIEnd(s string, maxLen int) int {
+	for j := 2; j < maxLen; j++ {
+		if s[j] >= 0x40 && s[j] <= 0x7E {
+			return j
+		}
+	}
+	return -1
+}

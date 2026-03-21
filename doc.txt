@@ -323,6 +323,7 @@ The following options can be used to customize the behavior of lf:
     shell             string    (default 'sh' for Unix and 'cmd' for Windows)
     shellflag         string    (default '-c' for Unix and '/c' for Windows)
     shellopts         []string  (default '')
+    previewfilter     string    (default 'normal')
     showbinds         bool      (default true)
     sizeunits         string    (default 'binary')
     smartcase         bool      (default true)
@@ -1292,6 +1293,32 @@ Command line flag used to pass shell commands.
 shellopts ([]string) (default ``)
 
 List of shell options to pass to the shell executable.
+
+previewfilter (string) (default normal)
+
+Controls how preview output is filtered for safety. Preview content may
+contain terminal escape sequences that could be dangerous if passed
+through unfiltered.
+
+    none      No filtering. Raw preview output is passed directly to the
+              terminal. Only use this if you fully trust all files on the
+              system.
+
+    normal    Strip dangerous sequences (clipboard writes, cursor
+              movement, charset switches, device queries) and C0 control
+              characters, but allow SGR styling, line erasure, and DCS
+              sequences such as sixel images. This is suitable for use
+              with image previewers like chafa.
+
+    safe      Same as normal but also strips DCS sequences. Only SGR
+              color/styling and EL (erase in line) are allowed. Use this
+              if you use a text-only previewer like bat or highlight and
+              do not need sixel or other terminal image protocols.
+
+    paranoid  Strip everything. Only printable characters and tabs are
+              kept. No colors, no styling, no escape sequences of any
+              kind. Useful in high-security environments or if previews
+              appear garbled.
 
 showbinds (bool) (default true)
 

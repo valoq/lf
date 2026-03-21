@@ -55,7 +55,7 @@ func printLength(s string) int {
 
 		if gc == "\t" {
 			length += gOpts.tabstop - length%gOpts.tabstop
-		} else {
+		} else if gc[0] >= 0x20 && gc[0] != 0x7f {
 			length += w
 		}
 	}
@@ -89,7 +89,7 @@ func (win *win) print(screen tcell.Screen, x, y int, st tcell.Style, s string) t
 		if gc == "\t" {
 			w := gOpts.tabstop - (x+off+printLength(b.String()))%gOpts.tabstop
 			b.WriteString(strings.Repeat(" ", w))
-		} else if gc != "\r" && gc != "\n" {
+		} else if gc[0] >= 0x20 && gc[0] != 0x7f {
 			b.WriteString(gc)
 		}
 
