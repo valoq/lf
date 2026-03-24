@@ -945,6 +945,15 @@ func (nav *nav) preview(path string, win *win, mode string) {
 		}
 	}
 
+	// External previewers may emit dangerous sequences embedded in the
+	// file content they process. Strip unsafe sequences while keeping
+	// colors (SGR), line erasure (EL), hyperlinks (OSC 8), and sixel.
+	if len(gOpts.previewer) != 0 && !binary {
+		for i, l := range lines {
+			lines[i] = stripUnsafeSequences(l)
+		}
+	}
+
 	reg.lines = lines
 	reg.sixel = sixel
 }

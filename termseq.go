@@ -282,3 +282,95 @@ func stripAllSequences(s string) string {
 		return -1
 	}, s)
 }
+
+// stripUnsafeSequences removes dangerous terminal escape sequences while
+// keeping safe formatting. Used to filter external previewer output.
+//
+// Kept: CSI SGR (ESC[...m), CSI EL (ESC[...K), OSC 8 hyperlinks,
+// DCS sixel images, and printable characters including tabs.
+//
+// Stripped: all other CSI sequences (cursor movement, device status,
+// erase display), all other OSC sequences (clipboard writes, title
+// changes), all other DCS sequences (DECRQSS, DECUDK), ESC-initiated
+// sequences (charset switches), and C0/C1 control characters.
+func stripUnsafeSequences(s string) string {
+	var b strings.Builder
+	slen := len(s)
+	for i := 0; i < slen; i++ {
+		c := s[i]
+
+		if c != gEscapeCode {
+			if c >= 0x20 && c != 0x7F || c == '\t' {
+				b.WriteByte(c)
+			}
+			continue
+		}
+
+		if i+1 >= slen {
+			continue
+		}
+
+		switch s[i+1] {
+		case '[': // CSI — find the final byte (0x40-0x7E)
+			end := -1
+			for j := i + 2; j < slen && j < i+64; j++ {
+				if s[j] >= 0x40 && s[j] <= 0x7E {
+					end = j
+					break
+				}
+			}
+			if end == -1 {
+				continue
+			}
+			if s[end] == 'm' || s[end] == 'K' {
+				b.WriteString(s[i : end+1])
+			}
+			i = end
+		case ']': // OSC — only allow OSC 8 (hyperlinks)
+			if i+3 >= slen || s[i+2] != '8' || s[i+3] != ';' {
+				continue
+			}
+			end := -1
+			for j := i + 4; j < slen; j++ {
+				if s[j] == 0x07 {
+					end = j
+					break
+				}
+				if s[j] == gEscapeCode && j+1 < slen && s[j+1] == '\\' {
+					end = j + 1
+					break
+				}
+			}
+			if end == -1 {
+				continue
+			}
+			b.WriteString(s[i : end+1])
+			i = end
+		case 'P': // DCS — only allow sixel (ESC P [digits;] q)
+			if isSixelStart(s[i+2:]) {
+				b.WriteByte(gEscapeCode)
+			}
+		case '\\': // ST — pass through to terminate DCS
+			b.WriteByte(gEscapeCode)
+		default:
+			// charset switches and other ESC sequences — drop
+		}
+	}
+
+	return b.String()
+}
+
+// isSixelStart checks whether a DCS body (after ESC P) begins with a valid
+// sixel introducer: optional digits/semicolons followed by 'q'.
+func isSixelStart(s string) bool {
+	for i := 0; i < len(s) && i < 16; i++ {
+		if s[i] == 'q' {
+			return true
+		}
+		if (s[i] >= '0' && s[i] <= '9') || s[i] == ';' {
+			continue
+		}
+		return false
+	}
+	return false
+}
