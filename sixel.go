@@ -43,6 +43,10 @@ func (sxs *sixelScreen) printSixel(win *win, screen tcell.Screen, reg *reg) {
 				break
 			}
 
+			// Non-sixel lines are written directly to the terminal
+			// bypassing tcell. Strip all control characters to prevent
+			// escape sequence injection from file content.
+			line = stripAllSequences(line)
 			screen.LockRegion(win.x, y, printLength(line), 1, true)
 			fmt.Fprintf(&b, "\033[%d;%dH", y+1, win.x+1)
 			b.WriteString(line)
