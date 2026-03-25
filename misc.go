@@ -431,7 +431,7 @@ func getFileExtension(file fs.FileInfo) string {
 // The file extension is not affected by truncation, however it will be clipped
 // if it exceeds the allowed width.
 func truncateFilename(file fs.FileInfo, maxWidth, truncatePct int, truncateChar string) string {
-	filename := file.Name()
+	filename := sanitizeName(file.Name())
 	if uniseg.StringWidth(filename) <= maxWidth {
 		return filename
 	}

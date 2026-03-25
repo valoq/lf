@@ -282,3 +282,42 @@ func stripAllSequences(s string) string {
 		return -1
 	}, s)
 }
+
+// sanitizeName replaces characters in a filename that could corrupt terminal
+// display with '?'. This prevents escape sequence injection through crafted
+// filenames and avoids width mismatches from invalid UTF-8.
+//
+// Replaced: C0 controls (0x00-0x1F including tab), DEL (0x7F), C1 controls
+// (0x80-0x9F), and invalid UTF-8 bytes. Follows GNU find convention.
+func sanitizeName(s string) string {
+	if !needsSanitize(s) {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(s))
+	i := 0
+	for i < len(s) {
+		r, size := utf8.DecodeRuneInString(s[i:])
+		if r == utf8.RuneError && size <= 1 {
+			b.WriteByte('?')
+			i++
+		} else if r < 0x20 || r == 0x7F || (r >= 0x80 && r <= 0x9F) {
+			b.WriteByte('?')
+			i += size
+		} else {
+			b.WriteString(s[i : i+size])
+			i += size
+		}
+	}
+	return b.String()
+}
+
+func needsSanitize(s string) bool {
+	for i := 0; i < len(s); i++ {
+		b := s[i]
+		if b < 0x20 || b == 0x7F || (b >= 0x80 && b <= 0x9F) {
+			return true
+		}
+	}
+	return !utf8.ValidString(s)
+}

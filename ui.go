@@ -638,7 +638,7 @@ func (ui *ui) drawPromptLine(nav *nav) {
 	st := tcell.StyleDefault
 
 	dir := nav.currDir()
-	pwd := dir.path
+	pwd := sanitizeName(dir.path)
 
 	if after, ok := strings.CutPrefix(pwd, gUser.HomeDir); ok {
 		pwd = filepath.Join("~", after)
@@ -648,7 +648,7 @@ func (ui *ui) drawPromptLine(nav *nav) {
 
 	var fname string
 	if curr := nav.currFile(); curr != nil {
-		fname = filepath.Base(curr.path)
+		fname = sanitizeName(filepath.Base(curr.path))
 	}
 
 	var prompt string
@@ -744,7 +744,7 @@ func (ui *ui) drawStat(nav *nav) {
 	replace("%s", humanize(curr.Size()))
 	replace("%S", fmt.Sprintf("%5s", humanize(curr.Size())))
 	replace("%t", curr.ModTime().Format(gOpts.timefmt))
-	replace("%l", curr.linkTarget)
+	replace("%l", sanitizeName(curr.linkTarget))
 
 	var fileInfo strings.Builder
 	for section := range strings.SplitSeq(statfmt, "\x1f") {
@@ -870,8 +870,8 @@ func (ui *ui) drawRulerFile(nav *nav) {
 	if curr != nil {
 		if curr.err == nil {
 			stat = &statData{
-				Path:        curr.path,
-				Name:        curr.Name(),
+				Path:        sanitizeName(curr.path),
+				Name:        sanitizeName(curr.Name()),
 				Extension:   curr.ext,
 				Size:        curr.Size(),
 				DirSize:     curr.dirSize,
@@ -884,7 +884,7 @@ func (ui *ui) drawRulerFile(nav *nav) {
 				LinkCount:   linkCount(curr),
 				User:        userName(curr),
 				Group:       groupName(curr),
-				Target:      curr.linkTarget,
+				Target:      sanitizeName(curr.linkTarget),
 				CustomInfo:  curr.customInfo,
 			}
 		} else {
