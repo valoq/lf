@@ -1259,6 +1259,8 @@ func (e *callExpr) eval(app *app, _ []string) {
 		}
 	case "draw":
 	case "redraw":
+		fmt.Fprint(os.Stderr, "\033[?2026h")
+		defer fmt.Fprint(os.Stderr, "\033[?2026l")
 		app.ui.screen.Sync()
 		app.ui.renew()
 		app.nav.resize(app.ui)
