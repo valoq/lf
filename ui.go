@@ -896,7 +896,7 @@ func (ui *ui) drawRulerFile(nav *nav) {
 				User:        userName(curr),
 				Group:       groupName(curr),
 				Target:      sanitizeName(curr.linkTarget),
-				CustomInfo:  sanitizeForDisplay(curr.customInfo),
+				CustomInfo:  curr.customInfo,
 			}
 		} else {
 			ui.echoerrf("stat: %s", curr.err)
