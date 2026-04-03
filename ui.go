@@ -1133,6 +1133,8 @@ func (ui *ui) draw(nav *nav) {
 	st := tcell.StyleDefault
 	context := dirContext{selections: nav.selections, clipboard: nav.clipboard, tags: nav.tags}
 
+	fmt.Fprint(os.Stderr, "\033[?2026h")
+	defer fmt.Fprint(os.Stderr, "\033[?2026l")
 	ui.screen.Clear()
 
 	ui.drawPromptLine(nav)

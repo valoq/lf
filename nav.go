@@ -684,7 +684,6 @@ func (nav *nav) resize(ui *ui) {
 	}
 
 	clear(nav.regCache)
-	nav.preloadTimer.Reset(200 * time.Millisecond)
 }
 
 func (nav *nav) position() {
