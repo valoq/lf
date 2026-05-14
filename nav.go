@@ -840,9 +840,9 @@ func (nav *nav) preload() {
 			return
 		}
 
-		nav.regCache[file.path] = &reg{loading: true, loadTime: time.Now(), path: file.path}
 		select {
 		case nav.preloadChan <- file.path:
+			nav.regCache[file.path] = &reg{loading: true, loadTime: time.Now(), path: file.path}
 		default:
 		}
 	}
