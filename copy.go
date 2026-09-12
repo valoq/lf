@@ -12,6 +12,9 @@ import (
 	"github.com/djherbis/times"
 )
 
+// process umask at startup
+var gUmask = getUmask()
+
 type ProgressWriter struct {
 	writer io.Writer
 	nums   chan<- int64
@@ -82,7 +85,7 @@ func copyFile(src, dst string, preserve []string, info os.FileInfo, nums chan<- 
 	}
 
 	// OpenFile reduces the given mode by the umask
-	if slices.Contains(preserve, "mode") {
+	if slices.Contains(preserve, "mode") && info.Mode()&gUmask != 0 {
 		if err := w.Chmod(info.Mode() &^ (os.ModeSetuid | os.ModeSetgid)); err != nil {
 			errs <- err
 		}
