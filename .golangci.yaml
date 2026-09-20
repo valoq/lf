@@ -8,6 +8,7 @@ linters:
         - (*net.UnixConn).CloseWrite
         - (*os.File).Close
         - (*os.File).Write
+        - (*os.Root).Close
         - (*text/tabwriter.Writer).Flush
         - (io.Closer).Close
         - (io.Writer).Write
