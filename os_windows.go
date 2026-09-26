@@ -172,6 +172,11 @@ func setDefaults() {
 
 func setUserUmask() {}
 
+// chmodDir does nothing because Windows ignores directory modes
+func chmodDir(_ string, _ os.FileMode) error {
+	return nil
+}
+
 func isExecutable(f os.FileInfo) bool {
 	ext := filepath.Ext(f.Name())
 	if ext == "" {

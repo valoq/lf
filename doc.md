@@ -1071,6 +1071,7 @@ Allow previews to be generated in advance using the `previewer` script as the us
 
 List of attributes that are preserved when copying files.
 Currently supported attributes are `mode` (i.e. access mode) and `timestamps` (i.e. modification time and access time).
+The setuid, setgid and sticky bits are not preserved because the ownership is not preserved either.
 Note that preserving other attributes like ownership or change/birth timestamps is desirable, but not portably supported in Go.
 
 ## preview (bool) (default true)

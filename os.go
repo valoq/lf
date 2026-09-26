@@ -192,6 +192,16 @@ func setUserUmask() {
 	unix.Umask(0o077)
 }
 
+// chmodDir sets the mode of a directory without following a symbolic link
+func chmodDir(path string, mode os.FileMode) error {
+	d, err := os.OpenFile(path, os.O_RDONLY|unix.O_NOFOLLOW, 0)
+	if err != nil {
+		return err
+	}
+	defer d.Close()
+	return d.Chmod(mode)
+}
+
 func isExecutable(f os.FileInfo) bool {
 	return f.Mode()&0o111 != 0
 }
