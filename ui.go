@@ -137,7 +137,7 @@ func (win *win) printMsg(screen tcell.Screen, s string) {
 
 func (win *win) printReg(screen tcell.Screen, reg *reg, sxs *sixelScreen, previewTimer *time.Timer) {
 	switch {
-	case reg.loading:
+	case reg.loading && len(reg.lines) == 0:
 		if time.Since(reg.loadTime) > previewLoadingDelay {
 			win.printMsg(screen, "loading...")
 		} else {
@@ -608,6 +608,7 @@ type reg struct {
 	loading  bool
 	volatile bool
 	loadTime time.Time
+	modTime  time.Time // modification time of the previewed file
 	path     string
 	lines    []string
 	sixel    bool
@@ -1306,6 +1307,8 @@ func listJumps(jumps []string, ind int) string {
 	fmt.Fprintln(t, "  jump\tpath")
 	// print jumps in order of most recent, Vim uses the opposite order
 	for i, path := range slices.Backward(jumps) {
+		// sanitize the path so a raw newline cannot break the query response
+		path = sanitizeName(path)
 		switch {
 		case i < ind:
 			fmt.Fprintf(t, "  %*d\t%s\n", maxlength, ind-i, path)

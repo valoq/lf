@@ -710,34 +710,43 @@ func (nav *nav) position() {
 	}
 }
 
-func (nav *nav) exportFiles() {
-	var currFile string
-	if curr := nav.currFile(); curr != nil {
-		currFile = quoteString(curr.path)
+// exportFiles sets the shell variables and returns an error for a dropped name.
+func (nav *nav) exportFiles() error {
+	// a name with a newline would split the list
+	join := func(paths []string) string {
+		var quoted []string
+		for _, path := range paths {
+			if !strings.ContainsAny(path, "\n\r") {
+				quoted = append(quoted, quoteString(path))
+			}
+		}
+		return strings.Join(quoted, gOpts.filesep)
 	}
 
-	var selections []string
-	for _, selection := range nav.currSelections() {
-		selections = append(selections, quoteString(selection))
+	var curr []string
+	if file := nav.currFile(); file != nil {
+		curr = []string{file.path}
 	}
-	currSelections := strings.Join(selections, gOpts.filesep)
+	selections := nav.currSelections()
+	vSelections := nav.currDir().visualSelections()
 
-	var vSelections []string
-	for _, selection := range nav.currDir().visualSelections() {
-		vSelections = append(vSelections, quoteString(selection))
-	}
-	currVSelections := strings.Join(vSelections, gOpts.filesep)
+	currFile := join(curr)
+	currSelections := join(selections)
+	currVSelections := join(vSelections)
 
 	os.Setenv("f", currFile)
 	os.Setenv("fs", currSelections)
 	os.Setenv("fv", currVSelections)
 	os.Setenv("PWD", quoteString(nav.currDir().path))
 
+	// $fx must not fall back to $f when all selected paths were dropped
 	if len(selections) == 0 {
 		os.Setenv("fx", currFile)
 	} else {
 		os.Setenv("fx", currSelections)
 	}
+
+	return newlineErr(slices.Concat(curr, selections, vSelections)...)
 }
 
 func (nav *nav) preloadLoop(ui *ui) {
@@ -865,6 +874,9 @@ func (nav *nav) preload() {
 
 func (nav *nav) preview(path string, win *win, mode string) {
 	reg := &reg{loadTime: time.Now(), path: path, height: win.h}
+	if fi, err := os.Stat(path); err == nil {
+		reg.modTime = fi.ModTime()
+	}
 	defer func() {
 		if (gOpts.preload && mode == "preview") || (!gOpts.preload && reg.volatile) {
 			nav.volatilePreview = true
@@ -961,8 +973,13 @@ func (nav *nav) preview(path string, win *win, mode string) {
 func (nav *nav) loadReg(path string, volatile bool) *reg {
 	r, ok := nav.regCache[path]
 	if !ok || (!gOpts.preload && r.loading) {
-		r = &reg{loading: true, loadTime: time.Now(), path: path}
-		nav.regCache[path] = r
+		// keep a reloading preview so its lines stay visible until the new ones arrive
+		if !ok {
+			r = &reg{path: path}
+			nav.regCache[path] = r
+		}
+		r.loading = true
+		r.loadTime = time.Now()
 		if gOpts.preload {
 			select {
 			case nav.preloadChan <- path:
@@ -1000,7 +1017,14 @@ func (nav *nav) checkReg(reg *reg) {
 		return
 	}
 
-	if s.ModTime().After(reg.loadTime) {
+	// a running load already covers changes made before it was queued
+	if reg.loading && !s.ModTime().After(reg.loadTime) {
+		return
+	}
+
+	// reload when the mtime differs from the one seen at preview time
+	if !s.ModTime().Equal(reg.modTime) {
+		reg.modTime = s.ModTime()
 		reg.loadTime = now
 		reg.loading = true
 		if gOpts.preload {
@@ -1278,6 +1302,9 @@ func (nav *nav) tagToggle(tag string) error {
 	if err != nil {
 		return err
 	}
+	if err := newlineErr(list...); err != nil {
+		return err
+	}
 
 	if printLength(tag) != 1 {
 		return errors.New("tag should be single width character")
@@ -1293,6 +1320,9 @@ func (nav *nav) tagToggle(tag string) error {
 func (nav *nav) tag(tag string) error {
 	list, err := nav.currFileOrSelections()
 	if err != nil {
+		return err
+	}
+	if err := newlineErr(list...); err != nil {
 		return err
 	}
 
@@ -1361,7 +1391,7 @@ func (nav *nav) copyAsync(app *app, srcs []string, dstDir string) {
 
 	nav.copyTotalChan <- total
 
-	nums, errs := copyAll(srcs, dstDir, gOpts.preserve)
+	nums, errs := copyAll(srcs, dstDir, gOpts.preserve, nil)
 
 loop:
 	for {
@@ -1429,7 +1459,7 @@ func (nav *nav) moveAsync(app *app, srcs []string, dstDir string) {
 			ext := getFileExtension(dstStat)
 			basename := file[:len(file)-len(ext)]
 			var newPath string
-			for i := 1; !os.IsNotExist(err); i++ {
+			for i := 1; err == nil; i++ {
 				file = strings.ReplaceAll(gOpts.dupfilefmt, "%f", basename+ext)
 				file = strings.ReplaceAll(file, "%b", basename)
 				file = strings.ReplaceAll(file, "%e", ext)
@@ -1437,23 +1467,35 @@ func (nav *nav) moveAsync(app *app, srcs []string, dstDir string) {
 				newPath = filepath.Join(dstDir, file)
 				_, err = os.Lstat(newPath)
 			}
+			if !os.IsNotExist(err) {
+				sendErr("%v", err)
+				continue
+			}
 			dst = newPath
 		}
 
 		if err := os.Rename(src, dst); err != nil {
 			if errCrossDevice(err) {
+				// copy and remove through one open parent of the resolved path to keep the remove on the real source
+				real := realPath(src)
+				parent, err := os.OpenRoot(filepath.Dir(real))
+				if err != nil {
+					sendErr("%v", err)
+					continue
+				}
 				nav.copyJobsChan <- 1
 
 				total, err := copySize([]string{src})
 				if err != nil {
 					sendErr("%v", err)
 					nav.copyJobsChan <- -1
+					parent.Close()
 					continue
 				}
 
 				nav.copyTotalChan <- total
 
-				nums, errs := copyAll([]string{src}, dstDir, []string{"mode", "timestamps"})
+				nums, errs := copyAll([]string{src}, dstDir, []string{"mode", "timestamps"}, parent)
 
 				oldCount := errCount
 			loop:
@@ -1472,11 +1514,13 @@ func (nav *nav) moveAsync(app *app, srcs []string, dstDir string) {
 				nav.copyJobsChan <- -1
 				nav.copyTotalChan <- -total
 
+				// remove only what the copy holds, so nothing without a copy is lost
 				if errCount == oldCount {
-					if err := os.RemoveAll(src); err != nil {
+					if err := removeCopied(parent, filepath.Base(real), dst); err != nil {
 						sendErr("%v", err)
 					}
 				}
+				parent.Close()
 			} else {
 				sendErr("%v", err)
 			}
@@ -1579,13 +1623,21 @@ func (nav *nav) rename() error {
 	// this clears only the current instance of lf, and not any other instances.
 	deletePathRecursive(nav.regCache, newPath)
 	deletePathRecursive(nav.dirCache, newPath)
+
+	// show the old preview until the renamed file is previewed again
+	if r, ok := nav.regCache[oldPath]; ok && !r.loading {
+		delete(nav.regCache, oldPath)
+		r.path = newPath
+		r.modTime = time.Time{}
+		nav.regCache[newPath] = r
+	}
 	dir := nav.getDir(filepath.Dir(newPath))
 	nav.checkDir(dir)
 
 	if dir.loading {
 		for i := range dir.allFiles {
 			if dir.allFiles[i].path == oldPath {
-				dir.allFiles[i] = &file{FileInfo: lstat}
+				dir.allFiles[i] = newFile(newPath)
 				break
 			}
 		}
