@@ -930,6 +930,7 @@ Draw borders around panes using box drawing characters.
 
 Format string of filename when creating duplicate files. With the default format, copying a file `abc.txt` to the same directory will result in a duplicate file called `abc.txt.~1~`.
 Special expansions are provided, `%f` as the file name, `%b` for the base name (file name without extension), `%e` as the extension (including the dot) and `%n` as the number of duplicates.
+The value must contain `%n` so that each duplicate gets a different name.
 
 ## errorfmt (string) (default `\033[7;31;47m`)
 

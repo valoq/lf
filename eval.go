@@ -230,6 +230,11 @@ func (e *setExpr) eval(app *app, _ []string) {
 		app.nav.resize(app.ui)
 		app.ui.loadFile(app, true)
 	case "dupfilefmt":
+		// without %n every duplicate name is the same and paste never finds a free one
+		if !strings.Contains(e.val, "%n") {
+			app.ui.echoerr("dupfilefmt: value should contain '%n'")
+			return
+		}
 		gOpts.dupfilefmt = e.val
 	case "errorfmt":
 		gOpts.errorfmt = e.val
